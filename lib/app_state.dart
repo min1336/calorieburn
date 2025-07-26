@@ -5,12 +5,17 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:health/health.dart';
 import 'log_entry.dart';
 
 enum Gender { male, female }
 enum ActivityLevel { sedentary, light, moderate, active, veryActive }
 
 class AppState extends ChangeNotifier {
+  final HealthFactory health = HealthFactory(useHealthConnectIfAvailable: true);
+  int todaySteps = 0;
+  String? autoHuntResult;
+
   int selectedIndex = 0;
   double currentCalories = 0;
   double maxCalories = 2200;
@@ -28,13 +33,66 @@ class AppState extends ChangeNotifier {
   double userWeightKg = 75.0;
   Gender gender = Gender.male;
   ActivityLevel activityLevel = ActivityLevel.moderate;
-
-  // --- 여기를 추가했습니다: 수분 섭취 변수 ---
   int waterIntakeMl = 0;
-  final int waterGoalMl = 2000; // 목표량 2000ml
+  final int waterGoalMl = 2000;
 
   AppState() {
     loadData();
+  }
+
+  Future<void> initHealth() async {
+    final types = [HealthDataType.STEPS];
+    final permissions = [HealthDataAccess.READ];
+    final requested = await health.requestAuthorization(types, permissions: permissions);
+
+    if (requested) {
+      await processAutoHunt();
+      await fetchTodaySteps();
+    }
+  }
+
+  Future<void> processAutoHunt() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastCheckTimeString = prefs.getString('lastStepCheckTime');
+    final now = DateTime.now();
+
+    if (lastCheckTimeString == null) {
+      prefs.setString('lastStepCheckTime', now.toIso8601String());
+      return;
+    }
+
+    final lastCheckTime = DateTime.parse(lastCheckTimeString);
+    int? steps = await health.getTotalStepsInInterval(lastCheckTime, now);
+
+    if (steps != null && steps > 0) {
+      final damage = (steps / 100).floor();
+      final xp = (steps / 200).floor();
+
+      if (damage > 0) {
+        bossHp -= damage;
+        _addXp(xp.toDouble());
+        logEntries.add(LogEntry(name: '자동 사냥 ($steps 걸음)', calories: damage.toDouble(), type: LogType.exercise, timestamp: now));
+        autoHuntResult = '자동 사냥 결과!\n$steps 걸음으로 보스에게 $damage의 데미지를 입혔습니다! (+${xp}XP)';
+
+        if (bossHp <= 0) {
+          bossDefeated();
+        } else {
+          _saveData();
+        }
+      }
+    }
+    prefs.setString('lastStepCheckTime', now.toIso8601String());
+    notifyListeners();
+  }
+
+  Future<void> fetchTodaySteps() async {
+    final now = DateTime.now();
+    final midnight = DateTime(now.year, now.month, now.day);
+    int? steps = await health.getTotalStepsInInterval(midnight, now);
+    if (steps != null) {
+      todaySteps = steps;
+      notifyListeners();
+    }
   }
 
   void onTabTapped(int index) {
@@ -48,7 +106,7 @@ class AppState extends ChangeNotifier {
 
   void _levelUp() {
     userLevel++;
-    currentXp = currentXp - xpForNextLevel;
+    currentXp -= xpForNextLevel;
     xpForNextLevel = _calculateXpForNextLevel(userLevel);
   }
 
@@ -83,29 +141,28 @@ class AppState extends ChangeNotifier {
       toxinLevel = 0;
       logEntries = [];
       isToxified = false;
-      waterIntakeMl = 0; // 날짜 바뀌면 물 섭취량 초기화
+      waterIntakeMl = 0;
     } else {
       currentCalories = prefs.getDouble('currentCalories') ?? 0;
       toxinLevel = prefs.getDouble('toxinLevel') ?? 0;
       isToxified = prefs.getBool('isToxified') ?? false;
-      waterIntakeMl = prefs.getInt('waterIntakeMl') ?? 0; // 물 섭취량 불러오기
+      waterIntakeMl = prefs.getInt('waterIntakeMl') ?? 0;
       List<String> logEntriesJson = prefs.getStringList('logEntries') ?? [];
       logEntries = logEntriesJson.map((jsonString) => LogEntry.fromJson(jsonDecode(jsonString))).toList();
     }
     notifyListeners();
+    await initHealth();
   }
 
   Future<void> _saveData() async {
     final prefs = await SharedPreferences.getInstance();
     final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
     prefs.setString('lastActiveDate', today);
-
     prefs.setInt('userAge', userAge);
     prefs.setDouble('userHeightCm', userHeightCm);
     prefs.setDouble('userWeightKg', userWeightKg);
     prefs.setInt('gender', gender.index);
     prefs.setInt('activityLevel', activityLevel.index);
-
     prefs.setDouble('currentCalories', currentCalories);
     prefs.setDouble('toxinLevel', toxinLevel);
     prefs.setDouble('bossHp', bossHp);
@@ -114,7 +171,7 @@ class AppState extends ChangeNotifier {
     prefs.setInt('userLevel', userLevel);
     prefs.setDouble('currentXp', currentXp);
     prefs.setBool('isToxified', isToxified);
-    prefs.setInt('waterIntakeMl', waterIntakeMl); // 물 섭취량 저장
+    prefs.setInt('waterIntakeMl', waterIntakeMl);
     List<String> logEntriesJson = logEntries.map((entry) => jsonEncode(entry.toJson())).toList();
     prefs.setStringList('logEntries', logEntriesJson);
   }
@@ -126,7 +183,6 @@ class AppState extends ChangeNotifier {
     } else {
       bmr = 447.593 + (9.247 * userWeightKg) + (3.098 * userHeightCm) - (4.330 * userAge);
     }
-
     double activityMultiplier;
     switch (activityLevel) {
       case ActivityLevel.sedentary: activityMultiplier = 1.2; break;
@@ -136,16 +192,9 @@ class AppState extends ChangeNotifier {
       case ActivityLevel.veryActive: activityMultiplier = 1.9; break;
     }
     maxCalories = bmr * activityMultiplier;
-    notifyListeners();
   }
 
-  void updateProfile({
-    required int newAge,
-    required double newHeight,
-    required double newWeight,
-    required Gender newGender,
-    required ActivityLevel newActivityLevel,
-  }) {
+  void updateProfile({ required int newAge, required double newHeight, required double newWeight, required Gender newGender, required ActivityLevel newActivityLevel }) {
     userAge = newAge;
     userHeightCm = newHeight;
     userWeightKg = newWeight;
@@ -155,10 +204,9 @@ class AppState extends ChangeNotifier {
     _saveData();
   }
 
-  // --- 여기를 추가했습니다: 수분 섭취 함수 ---
   void addWater(int amount) {
     waterIntakeMl += amount;
-    _addXp(2); // 물 마실 때마다 2 XP 획득
+    _addXp(2);
     _saveData();
     notifyListeners();
   }
@@ -187,7 +235,6 @@ class AppState extends ChangeNotifier {
       notifyListeners();
       return;
     }
-
     currentCalories -= amount;
     if (currentCalories < 0) currentCalories = 0;
     if (toxinLevel > 0) {
@@ -197,7 +244,6 @@ class AppState extends ChangeNotifier {
     bossHp -= amount;
     logEntries.add(LogEntry(name: name, calories: amount, type: LogType.exercise, timestamp: DateTime.now()));
     _addXp(20);
-
     if (bossHp <= 0) {
       bossDefeated();
     } else {

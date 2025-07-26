@@ -2,14 +2,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'app_state.dart'; // AppState import
+import 'app_state.dart';
 import 'home_screen.dart';
 import 'boss_raid_screen.dart';
 import 'profile_screen.dart';
 
 void main() {
   runApp(
-    // 1. AppState를 앱 전체에 제공
     ChangeNotifierProvider(
       create: (context) => AppState(),
       child: const CalorieBurnApp(),
@@ -26,23 +25,65 @@ class CalorieBurnApp extends StatelessWidget {
       title: 'Calorie Burn',
       theme: ThemeData(
         brightness: Brightness.dark,
-        // ... 기존 테마 설정 (변경 없음) ...
+        // ... (테마 설정은 변경 없음)
       ),
       home: const MainScreen(),
     );
   }
 }
 
-// 2. MainScreen을 StatelessWidget으로 변경하고 매우 단순화
-class MainScreen extends StatelessWidget {
+class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // AppState의 변화를 감지
-    final appState = context.watch<AppState>();
+  State<MainScreen> createState() => _MainScreenState();
+}
 
-    // 현재 선택된 탭에 따라 보여줄 화면 리스트
+class _MainScreenState extends State<MainScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // initState에서 리스너를 추가하여 자동 사냥 결과를 감지
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final appState = context.read<AppState>();
+      appState.addListener(_showAutoHuntDialog);
+    });
+  }
+
+  @override
+  void dispose() {
+    // 위젯이 사라질 때 리스너를 제거하여 메모리 누수 방지
+    context.read<AppState>().removeListener(_showAutoHuntDialog);
+    super.dispose();
+  }
+
+  void _showAutoHuntDialog() {
+    final appState = context.read<AppState>();
+    // autoHuntResult에 메시지가 있고, 아직 화면에 팝업이 떠있지 않을 때만 실행
+    if (appState.autoHuntResult != null && ModalRoute.of(context)?.isCurrent != false) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('⚔️ 자동 사냥 결과 ⚔️'),
+          content: Text(appState.autoHuntResult!),
+          actions: [
+            TextButton(
+              onPressed: () {
+                // 팝업을 닫고, 결과 메시지를 null로 초기화하여 중복 표시 방지
+                appState.autoHuntResult = null;
+                Navigator.of(context).pop();
+              },
+              child: const Text('확인'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
     final List<Widget> screens = [
       const HomeScreen(),
       const BossRaidScreen(),
@@ -50,7 +91,7 @@ class MainScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      body: screens[appState.selectedIndex], // 선택된 화면 보여주기
+      body: screens[appState.selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
@@ -58,7 +99,6 @@ class MainScreen extends StatelessWidget {
           BottomNavigationBarItem(icon: Icon(Icons.person), label: '내 정보'),
         ],
         currentIndex: appState.selectedIndex,
-        // 탭을 누르면 AppState의 함수를 호출하여 상태 변경
         onTap: (index) => context.read<AppState>().onTabTapped(index),
       ),
     );

@@ -103,8 +103,6 @@ class HomeScreen extends StatelessWidget {
                         }
                     ),
                     const SizedBox(height: 20),
-
-                    // --- 여기를 추가했습니다: 수분 섭취 게이지 ---
                     Text('수분 섭취량', style: theme.textTheme.bodyMedium),
                     const SizedBox(height: 8),
                     TweenAnimationBuilder<double>(
@@ -126,6 +124,18 @@ class HomeScreen extends StatelessWidget {
                         '${appState.waterIntakeMl} / ${appState.waterGoalMl} ml',
                         style: theme.textTheme.bodyLarge,
                       ),
+                    ),
+                    const Divider(height: 24, color: Colors.white24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.directions_walk, color: Colors.white70),
+                        const SizedBox(width: 8),
+                        Text(
+                          '오늘의 걸음: ${appState.todaySteps} 걸음',
+                          style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -172,8 +182,6 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
-
-            // --- 여기를 추가했습니다: 수분 섭취 기록 섹션 ---
             Text('수분 섭취 기록', style: theme.textTheme.titleLarge?.copyWith(color: Colors.white70)),
             const SizedBox(height: 12),
             Row(
@@ -184,7 +192,6 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
-
             Text('오늘의 기록', style: theme.textTheme.titleLarge?.copyWith(color: Colors.white70)),
             const SizedBox(height: 12),
             appState.logEntries.isEmpty
@@ -367,7 +374,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // --- 여기를 추가했습니다: 수분 섭취 버튼 생성 함수 ---
   Widget _buildWaterButton(BuildContext context, String label, String emoji, int amount) {
     return Expanded(
       child: Padding(
