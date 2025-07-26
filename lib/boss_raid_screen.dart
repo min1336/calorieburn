@@ -1,3 +1,5 @@
+// lib/boss_raid_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app_state.dart';
@@ -9,13 +11,12 @@ class BossRaidScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final theme = Theme.of(context);
-    final bossHpPercentage = (appState.bossHp / appState.maxBossHp).clamp(0.0, 1.0);
+    final bossHpPercentage = (appState.maxBossHp > 0) ? (appState.bossHp / appState.maxBossHp).clamp(0.0, 1.0) : 0.0;
+    final currentBoss = appState.currentBoss;
 
-    // 보스 처치 후 승리 팝업 로직 (UI에서 상태 변화 감지)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (appState.bossHp <= 0) {
-        // 이미 팝업이 떠있는지 확인하는 로직이 필요할 수 있으나, 여기선 생략
-        _showVictoryDialog(context, appState.bossStage -1);
+      if (appState.bossHp <= 0 && ModalRoute.of(context)?.isCurrent != true) {
+        _showVictoryDialog(context, appState);
       }
     });
 
@@ -31,20 +32,34 @@ class BossRaidScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Text(
-              '폭식의 군주 Lv.${appState.bossStage}',
+              '${currentBoss.name} Lv.${appState.bossStage}',
               style: theme.textTheme.headlineSmall?.copyWith(color: Colors.redAccent),
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              width: 200,
-              height: 200,
-              child: Image.asset('assets/images/boss_image.png', fit: BoxFit.contain),
+            ColorFiltered(
+              colorFilter: ColorFilter.mode(
+                appState.isBossToxified ? Colors.purple.withOpacity(0.5) : Colors.transparent,
+                BlendMode.srcATop,
+              ),
+              child: SizedBox(
+                width: 200,
+                height: 200,
+                child: Image.asset(currentBoss.imagePath, fit: BoxFit.contain),
+              ),
             ),
+            if (appState.isBossToxified)
+              Padding(
+                padding: const EdgeInsets.only(top: 8.0),
+                child: Text(
+                  '독소 중독! 방어력이 매우 높습니다!',
+                  style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold),
+                ),
+              ),
             const SizedBox(height: 20),
             Text('남은 HP: ${appState.bossHp.toStringAsFixed(0)} / ${appState.maxBossHp.toStringAsFixed(0)}', style: theme.textTheme.titleLarge),
             const SizedBox(height: 10),
             TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: bossHpPercentage),
+              tween: Tween<double>(begin: bossHpPercentage, end: bossHpPercentage),
               duration: const Duration(milliseconds: 500),
               builder: (context, value, child) {
                 return LinearProgressIndicator(
@@ -69,12 +84,15 @@ class BossRaidScreen extends StatelessWidget {
               ),
               onPressed: () {
                 context.read<AppState>().burnCalories("운동 공격", 150);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('보스에게 150의 데미지를 입혔습니다!'),
-                    backgroundColor: Colors.deepPurpleAccent,
-                  ),
-                );
+                ScaffoldMessenger.of(context)
+                  ..removeCurrentSnackBar()
+                  ..showSnackBar(
+                    const SnackBar(
+                      content: Text('보스에게 150의 데미지를 입혔습니다!'),
+                      backgroundColor: Colors.deepPurpleAccent,
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
               },
             ),
             const SizedBox(height: 100),
@@ -84,8 +102,9 @@ class BossRaidScreen extends StatelessWidget {
     );
   }
 
-  // 승리 팝업 함수
-  Future<void> _showVictoryDialog(BuildContext context, int defeatedStage) async {
+  Future<void> _showVictoryDialog(BuildContext context, AppState appState) async {
+    final defeatedStage = appState.bossStage - 1;
+
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -104,7 +123,6 @@ class BossRaidScreen extends StatelessWidget {
             TextButton(
               child: const Text('다음 스테이지로'),
               onPressed: () {
-                // AppState의 로직은 이미 호출되었으므로, 여기서는 팝업만 닫음
                 Navigator.of(dialogContext).pop();
               },
             ),

@@ -16,6 +16,7 @@ class _RankingScreenState extends State<RankingScreen> {
   void initState() {
     super.initState();
     // 화면이 처음 로드될 때 랭킹 데이터를 가져옴
+    // (데이터 로딩은 이제 loadData 이후에 처리되므로 이 부분은 예비용)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppState>().fetchRankings();
     });
@@ -27,7 +28,7 @@ class _RankingScreenState extends State<RankingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('랭킹'),
+        title: const Text('친구 랭킹'), // 제목을 바꿔도 좋습니다.
         centerTitle: true,
         actions: [
           IconButton(
@@ -41,6 +42,16 @@ class _RankingScreenState extends State<RankingScreen> {
       ),
       body: appState.isRankingLoading
           ? const Center(child: CircularProgressIndicator())
+          : appState.rankings.isEmpty
+          ? const Center(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Text(
+            '아직 친구가 없거나 랭킹 정보를 불러올 수 없습니다.\n[내 정보] > [친구 관리]에서 친구를 추가해보세요!',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      )
           : ListView.builder(
         itemCount: appState.rankings.length,
         itemBuilder: (context, index) {

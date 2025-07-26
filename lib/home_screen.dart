@@ -335,13 +335,16 @@ class HomeScreen extends StatelessWidget {
       ),
       onPressed: () {
         context.read<AppState>().addCalories(label, calories, isToxinFood: isToxin);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$label ${calories.toInt()}kcal가 추가되었습니다.'),
-            duration: const Duration(seconds: 1),
-            backgroundColor: Colors.deepPurpleAccent,
-          ),
-        );
+        // --- 여기를 수정! ---
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('$label ${calories.toInt()}kcal가 추가되었습니다.'),
+              duration: const Duration(seconds: 1),
+              backgroundColor: Colors.deepPurpleAccent,
+            ),
+          );
       },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -361,13 +364,16 @@ class HomeScreen extends StatelessWidget {
       onPressed: () {
         final caloriesBurned = exercise.mets * appState.userWeightKg * (durationInMinutes / 60.0);
         appState.burnCalories(exercise.name, caloriesBurned);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${exercise.name} ${durationInMinutes}분 (${caloriesBurned.toInt()}kcal)이 기록되었습니다.'),
-            duration: const Duration(seconds: 1),
-            backgroundColor: Colors.blueAccent,
-          ),
-        );
+        // --- 여기를 수정! ---
+        ScaffoldMessenger.of(context)
+          ..removeCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('${exercise.name} ${durationInMinutes}분 (${caloriesBurned.toInt()}kcal)이 기록되었습니다.'),
+              duration: const Duration(seconds: 1),
+              backgroundColor: Colors.blueAccent,
+            ),
+          );
       },
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -388,13 +394,16 @@ class HomeScreen extends StatelessWidget {
           ),
           onPressed: () {
             context.read<AppState>().addWater(amount);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('$label ($amount ml)를 마셨습니다.'),
-                duration: const Duration(seconds: 1),
-                backgroundColor: Colors.lightBlue,
-              ),
-            );
+            // --- 여기를 수정! ---
+            ScaffoldMessenger.of(context)
+              ..removeCurrentSnackBar()
+              ..showSnackBar(
+                SnackBar(
+                  content: Text('$label ($amount ml)를 마셨습니다.'),
+                  duration: const Duration(seconds: 1),
+                  backgroundColor: Colors.lightBlue,
+                ),
+              );
           },
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,

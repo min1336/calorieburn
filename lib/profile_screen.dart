@@ -1,5 +1,7 @@
 // lib/profile_screen.dart
 
+import 'package:calorie_burn/friends_screen.dart';
+import 'package:calorie_burn/inventory_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app_state.dart';
@@ -47,13 +49,11 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: 10),
           Center(
             child: Text(
-              appState.nickname, // --- 이메일 대신 닉네임 표시 ---
+              appState.nickname,
               style: theme.textTheme.headlineSmall,
             ),
           ),
           const SizedBox(height: 30),
-
-          // ... (게임 정보, 신체 정보 UI는 이전과 동일)
           Text('게임 정보', style: theme.textTheme.titleLarge?.copyWith(color: Colors.white70)),
           const SizedBox(height: 8),
           _buildInfoCard(context, '현재 레벨', 'Lv. ${appState.userLevel}', isHighlight: true),
@@ -86,7 +86,6 @@ class ProfileScreen extends StatelessWidget {
           ),
           _buildInfoCard(context, '보스 진행', 'Stage ${appState.bossStage}'),
           const Divider(height: 40),
-
           Text('신체 정보', style: theme.textTheme.titleLarge?.copyWith(color: Colors.white70)),
           const SizedBox(height: 8),
           _buildInfoCard(context, '성별', appState.gender == Gender.male ? '남성' : '여성'),
@@ -101,7 +100,38 @@ class ProfileScreen extends StatelessWidget {
               isHighlight: true
           ),
           const Divider(height: 40),
-
+          ElevatedButton.icon(
+            icon: const Icon(Icons.shopping_bag_outlined),
+            label: const Text('내 가방'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orangeAccent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const InventoryScreen()),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            icon: const Icon(Icons.people),
+            label: const Text('친구 관리'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.teal,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const FriendsScreen()),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
           ElevatedButton.icon(
             icon: const Icon(Icons.logout),
             label: const Text('로그아웃'),
@@ -136,7 +166,6 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Future<void> _showEditProfileDialog(BuildContext context, AppState appState) async {
-    // --- 닉네임 컨트롤러 추가 ---
     final nicknameController = TextEditingController(text: appState.nickname);
     final ageController = TextEditingController(text: appState.userAge.toString());
     final heightController = TextEditingController(text: appState.userHeightCm.toString());
@@ -155,7 +184,6 @@ class ProfileScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // --- 닉네임 입력 필드 추가 ---
                     TextField(controller: nicknameController, decoration: const InputDecoration(labelText: '닉네임')),
                     TextField(controller: ageController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: '나이')),
                     TextField(controller: heightController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: '키 (cm)')),
