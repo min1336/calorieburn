@@ -7,6 +7,7 @@ import 'app_state.dart';
 import 'home_screen.dart';
 import 'boss_raid_screen.dart';
 import 'profile_screen.dart';
+import 'ranking_screen.dart'; // 랭킹 화면 import
 
 class MainAppScreen extends StatefulWidget {
   const MainAppScreen({super.key});
@@ -20,7 +21,6 @@ class _MainAppScreenState extends State<MainAppScreen> {
   @override
   void initState() {
     super.initState();
-    // 로그인 후에 AppState가 사용자 데이터를 로드하도록 트리거
     final user = context.read<User?>();
     if (user != null) {
       context.read<AppState>().loadData(user.uid);
@@ -31,18 +31,28 @@ class _MainAppScreenState extends State<MainAppScreen> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
 
+    // --- 랭킹 화면 추가 ---
     final List<Widget> screens = [
       const HomeScreen(),
       const BossRaidScreen(),
+      const RankingScreen(), // 여기에 추가
       const ProfileScreen(),
     ];
 
     return Scaffold(
-      body: screens[appState.selectedIndex],
+      // --- body 수정 ---
+      // IndexedStack을 사용하면 탭을 전환해도 각 화면의 상태가 유지됨
+      body: IndexedStack(
+        index: appState.selectedIndex,
+        children: screens,
+      ),
+      // --- 내비게이션 아이템 추가 ---
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed, // 4개 이상의 아이템을 위해 추가
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
           BottomNavigationBarItem(icon: Icon(Icons.shield), label: '보스 레이드'),
+          BottomNavigationBarItem(icon: Icon(Icons.leaderboard), label: '랭킹'), // 여기에 추가
           BottomNavigationBarItem(icon: Icon(Icons.person), label: '내 정보'),
         ],
         currentIndex: appState.selectedIndex,

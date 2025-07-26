@@ -1,3 +1,5 @@
+// lib/home_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -14,8 +16,8 @@ class HomeScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     final isOver = appState.currentCalories > appState.maxCalories;
-    final calorieRatio = (appState.currentCalories / appState.maxCalories).clamp(0.0, 1.0);
-    final waterRatio = (appState.waterIntakeMl / appState.waterGoalMl).clamp(0.0, 1.0);
+    final calorieRatio = (appState.maxCalories > 0) ? (appState.currentCalories / appState.maxCalories).clamp(0.0, 1.0) : 0.0;
+    final waterRatio = (appState.waterGoalMl > 0) ? (appState.waterIntakeMl / appState.waterGoalMl).clamp(0.0, 1.0) : 0.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -37,7 +39,7 @@ class HomeScreen extends StatelessWidget {
                     Text('나의 아바타 (Lv. ${appState.userLevel})', style: theme.textTheme.titleLarge),
                     const SizedBox(height: 8),
                     LinearProgressIndicator(
-                      value: appState.currentXp / appState.xpForNextLevel,
+                      value: appState.xpForNextLevel > 0 ? appState.currentXp / appState.xpForNextLevel : 0,
                       minHeight: 8,
                       backgroundColor: Colors.grey[800],
                       valueColor: const AlwaysStoppedAnimation<Color>(Colors.amberAccent),
@@ -65,7 +67,7 @@ class HomeScreen extends StatelessWidget {
                     Text('일일 칼로리 (HP)', style: theme.textTheme.bodyMedium),
                     const SizedBox(height: 8),
                     TweenAnimationBuilder<double>(
-                      tween: Tween<double>(begin: 0, end: calorieRatio),
+                      tween: Tween<double>(begin: calorieRatio, end: calorieRatio),
                       duration: const Duration(milliseconds: 500),
                       builder: (context, value, child) {
                         return LinearProgressIndicator(
@@ -92,7 +94,7 @@ class HomeScreen extends StatelessWidget {
                     Text('독소 게이지', style: theme.textTheme.bodyMedium),
                     const SizedBox(height: 8),
                     TweenAnimationBuilder<double>(
-                        tween: Tween<double>(begin: 0, end: appState.toxinLevel),
+                        tween: Tween<double>(begin: appState.toxinLevel, end: appState.toxinLevel),
                         duration: const Duration(milliseconds: 500),
                         builder: (context, value, child) {
                           return LinearProgressIndicator(
@@ -106,7 +108,7 @@ class HomeScreen extends StatelessWidget {
                     Text('수분 섭취량', style: theme.textTheme.bodyMedium),
                     const SizedBox(height: 8),
                     TweenAnimationBuilder<double>(
-                        tween: Tween<double>(begin: 0, end: waterRatio),
+                        tween: Tween<double>(begin: waterRatio, end: waterRatio),
                         duration: const Duration(milliseconds: 500),
                         builder: (context, value, child) {
                           return LinearProgressIndicator(

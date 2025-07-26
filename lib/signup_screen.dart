@@ -35,10 +35,12 @@ class SignUpScreen extends StatelessWidget {
                   email: emailController.text.trim(),
                   password: passwordController.text.trim(),
                 );
+
+                if (!context.mounted) return;
+
                 if (result == "Signed up") {
                   Navigator.pop(context);
                 } else {
-                  // 에러 메시지 표시 (옵션)
                   ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text(result ?? "회원가입 실패"))
                   );

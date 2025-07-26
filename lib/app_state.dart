@@ -1,8 +1,7 @@
 // lib/app_state.dart
 
-import 'dart:convert';
 import 'dart:math';
-import 'package.flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:health/health.dart';
@@ -39,6 +38,13 @@ class AppState extends ChangeNotifier {
   final int waterGoalMl = 2000;
 
   String? _uid;
+  String nickname = '';
+  List<Map<String, dynamic>> rankings = [];
+  bool isRankingLoading = true;
+
+  // AppState() {
+  //   loadData(); // <<--- 이 줄을 삭제했습니다.
+  // }
 
   Future<void> loadData(String uid) async {
     _uid = uid;
@@ -46,13 +52,12 @@ class AppState extends ChangeNotifier {
     final userDoc = await _firestore.collection('users').doc(_uid).get();
 
     if (!userDoc.exists) {
-      await _createInitialUserData();
-      await loadData(uid);
       return;
     }
 
     final data = userDoc.data()!;
 
+    nickname = data['nickname'] ?? '';
     userAge = data['userAge'] ?? 30;
     userHeightCm = data['userHeightCm']?.toDouble() ?? 175.0;
     userWeightKg = data['userWeightKg']?.toDouble() ?? 75.0;
@@ -101,6 +106,7 @@ class AppState extends ChangeNotifier {
     final logEntriesJson = logEntries.map((entry) => entry.toJson()).toList();
 
     await userDocRef.set({
+      'nickname': nickname,
       'lastActiveDate': today,
       'userAge': userAge,
       'userHeightCm': userHeightCm,
@@ -120,26 +126,6 @@ class AppState extends ChangeNotifier {
     }, SetOptions(merge: true));
   }
 
-  Future<void> _createInitialUserData() async {
-    if (_uid == null) return;
-    await _firestore.collection('users').doc(_uid).set({
-      'userAge': 30,
-      'userHeightCm': 175.0,
-      'userWeightKg': 75.0,
-      'gender': Gender.male.index,
-      'activityLevel': ActivityLevel.moderate.index,
-      'userLevel': 1,
-      'currentXp': 0.0,
-      'bossStage': 1,
-      'maxBossHp': 7700.0,
-      'bossHp': 7700.0,
-      'isToxified': false,
-      'waterIntakeMl': 0,
-      'logEntries': [],
-      'lastActiveDate': '',
-    });
-  }
-
   Future<void> initHealth() async {
     final types = [HealthDataType.STEPS];
     final permissions = [HealthDataAccess.READ];
@@ -153,8 +139,14 @@ class AppState extends ChangeNotifier {
 
   Future<void> processAutoHunt() async {
     if (_uid == null) return;
-    final userDoc = await _firestore.collection('users').doc(_uid).get();
-    if (!userDoc.exists) return;
+
+    DocumentSnapshot<Map<String, dynamic>> userDoc;
+    try {
+      userDoc = await _firestore.collection('users').doc(_uid).get();
+      if (!userDoc.exists) return;
+    } catch (e) {
+      return;
+    }
 
     final data = userDoc.data()!;
     final lastCheckTimeString = data['lastStepCheckTime'];
@@ -242,7 +234,15 @@ class AppState extends ChangeNotifier {
     maxCalories = bmr * activityMultiplier;
   }
 
-  void updateProfile({ required int newAge, required double newHeight, required double newWeight, required Gender newGender, required ActivityLevel newActivityLevel }) {
+  void updateProfile({
+    required String newNickname,
+    required int newAge,
+    required double newHeight,
+    required double newWeight,
+    required Gender newGender,
+    required ActivityLevel newActivityLevel,
+  }) {
+    nickname = newNickname;
     userAge = newAge;
     userHeightCm = newHeight;
     userWeightKg = newWeight;
@@ -307,5 +307,20 @@ class AppState extends ChangeNotifier {
     maxBossHp *= 1.1;
     bossHp = maxBossHp;
     _saveData();
+  }
+
+  Future<void> fetchRankings() async {
+    isRankingLoading = true;
+    notifyListeners();
+
+    final querySnapshot = await _firestore.collection('users')
+        .orderBy('userLevel', descending: true)
+        .orderBy('currentXp', descending: true)
+        .limit(50)
+        .get();
+
+    rankings = querySnapshot.docs.map((doc) => doc.data()).toList();
+    isRankingLoading = false;
+    notifyListeners();
   }
 }

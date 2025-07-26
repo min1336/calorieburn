@@ -1,7 +1,9 @@
+// lib/profile_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app_state.dart';
-import 'authentication_service.dart'; // 인증 서비스 import
+import 'authentication_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -44,10 +46,14 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Center(
-            child: Text('용사', style: theme.textTheme.headlineSmall),
+            child: Text(
+              appState.nickname, // --- 이메일 대신 닉네임 표시 ---
+              style: theme.textTheme.headlineSmall,
+            ),
           ),
           const SizedBox(height: 30),
 
+          // ... (게임 정보, 신체 정보 UI는 이전과 동일)
           Text('게임 정보', style: theme.textTheme.titleLarge?.copyWith(color: Colors.white70)),
           const SizedBox(height: 8),
           _buildInfoCard(context, '현재 레벨', 'Lv. ${appState.userLevel}', isHighlight: true),
@@ -61,7 +67,7 @@ class ProfileScreen extends StatelessWidget {
                   Text('경험치', style: theme.textTheme.bodyMedium),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
-                    value: appState.currentXp / appState.xpForNextLevel,
+                    value: appState.xpForNextLevel > 0 ? appState.currentXp / appState.xpForNextLevel : 0,
                     minHeight: 8,
                     backgroundColor: Colors.grey[800],
                     valueColor: const AlwaysStoppedAnimation<Color>(Colors.amberAccent),
@@ -96,7 +102,6 @@ class ProfileScreen extends StatelessWidget {
           ),
           const Divider(height: 40),
 
-          // --- 여기를 추가했습니다: 로그아웃 버튼 ---
           ElevatedButton.icon(
             icon: const Icon(Icons.logout),
             label: const Text('로그아웃'),
@@ -131,6 +136,8 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Future<void> _showEditProfileDialog(BuildContext context, AppState appState) async {
+    // --- 닉네임 컨트롤러 추가 ---
+    final nicknameController = TextEditingController(text: appState.nickname);
     final ageController = TextEditingController(text: appState.userAge.toString());
     final heightController = TextEditingController(text: appState.userHeightCm.toString());
     final weightController = TextEditingController(text: appState.userWeightKg.toString());
@@ -148,6 +155,8 @@ class ProfileScreen extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // --- 닉네임 입력 필드 추가 ---
+                    TextField(controller: nicknameController, decoration: const InputDecoration(labelText: '닉네임')),
                     TextField(controller: ageController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: '나이')),
                     TextField(controller: heightController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: '키 (cm)')),
                     TextField(controller: weightController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: '체중 (kg)')),
@@ -181,12 +190,14 @@ class ProfileScreen extends StatelessWidget {
                 TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('취소')),
                 ElevatedButton(
                   onPressed: () {
+                    final newNickname = nicknameController.text;
                     final newAge = int.tryParse(ageController.text);
                     final newHeight = double.tryParse(heightController.text);
                     final newWeight = double.tryParse(weightController.text);
 
-                    if (newAge != null && newHeight != null && newWeight != null) {
+                    if (newNickname.isNotEmpty && newAge != null && newHeight != null && newWeight != null) {
                       appState.updateProfile(
+                        newNickname: newNickname,
                         newAge: newAge,
                         newHeight: newHeight,
                         newWeight: newWeight,

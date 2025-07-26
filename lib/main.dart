@@ -9,24 +9,19 @@ import 'authentication_service.dart';
 import 'auth_wrapper.dart';
 
 Future<void> main() async {
-  // Flutter 앱을 실행하기 전에 네이티브 코드를 호출할 수 있도록 보장
   WidgetsFlutterBinding.ensureInitialized();
-  // Firebase 초기화
   await Firebase.initializeApp();
 
   runApp(
     MultiProvider(
       providers: [
-        // 1. 인증 서비스 제공
         Provider<AuthenticationService>(
           create: (_) => AuthenticationService(FirebaseAuth.instance),
         ),
-        // 2. 인증 상태 스트림 제공
         StreamProvider(
           create: (context) => context.read<AuthenticationService>().authStateChanges,
           initialData: null,
         ),
-        // 3. 앱의 핵심 상태 제공
         ChangeNotifierProvider(
           create: (context) => AppState(),
         ),
@@ -69,7 +64,6 @@ class CalorieBurnApp extends StatelessWidget {
           linearTrackColor: Colors.grey[800],
         ),
       ),
-      // AuthWrapper가 로그인 상태를 확인하고 적절한 화면을 보여줌
       home: const AuthWrapper(),
     );
   }

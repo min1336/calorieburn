@@ -25,7 +25,7 @@ class AuthenticationService {
       UserCredential userCredential = await _firebaseAuth.createUserWithEmailAndPassword(email: email, password: password);
 
       if (userCredential.user != null) {
-        await _createInitialUserData(userCredential.user!.uid, email); // 이메일도 전달
+        await _createInitialUserData(userCredential.user!.uid, email);
       }
 
       return "Signed up";
@@ -38,7 +38,7 @@ class AuthenticationService {
     await _firestore.collection('users').doc(uid).set({
       'uid': uid,
       'email': email,
-      'nickname': email.split('@')[0], // 이메일 앞부분을 기본 닉네임으로
+      'nickname': email.split('@')[0],
       'userAge': 30,
       'userHeightCm': 175.0,
       'userWeightKg': 75.0,
