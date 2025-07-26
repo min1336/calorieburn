@@ -2,9 +2,9 @@
 
 import 'dart:convert';
 import 'dart:math';
-import 'package:flutter/material.dart';
+import 'package.flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:health/health.dart';
 import 'log_entry.dart';
 
@@ -13,6 +13,8 @@ enum ActivityLevel { sedentary, light, moderate, active, veryActive }
 
 class AppState extends ChangeNotifier {
   final HealthFactory health = HealthFactory(useHealthConnectIfAvailable: true);
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   int todaySteps = 0;
   String? autoHuntResult;
 
@@ -36,8 +38,106 @@ class AppState extends ChangeNotifier {
   int waterIntakeMl = 0;
   final int waterGoalMl = 2000;
 
-  AppState() {
-    loadData();
+  String? _uid;
+
+  Future<void> loadData(String uid) async {
+    _uid = uid;
+
+    final userDoc = await _firestore.collection('users').doc(_uid).get();
+
+    if (!userDoc.exists) {
+      await _createInitialUserData();
+      await loadData(uid);
+      return;
+    }
+
+    final data = userDoc.data()!;
+
+    userAge = data['userAge'] ?? 30;
+    userHeightCm = data['userHeightCm']?.toDouble() ?? 175.0;
+    userWeightKg = data['userWeightKg']?.toDouble() ?? 75.0;
+    gender = Gender.values[data['gender'] ?? Gender.male.index];
+    activityLevel = ActivityLevel.values[data['activityLevel'] ?? ActivityLevel.moderate.index];
+    recalculateRecommendedCalories();
+
+    userLevel = data['userLevel'] ?? 1;
+    currentXp = data['currentXp']?.toDouble() ?? 0;
+    bossStage = data['bossStage'] ?? 1;
+    maxBossHp = data['maxBossHp']?.toDouble() ?? 7700.0;
+    bossHp = data['bossHp']?.toDouble() ?? maxBossHp;
+    xpForNextLevel = _calculateXpForNextLevel(userLevel);
+    isToxified = data['isToxified'] ?? false;
+
+    final todayString = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final lastActiveDate = data['lastActiveDate'];
+
+    if (lastActiveDate == null || lastActiveDate != todayString) {
+      currentCalories = 0;
+      toxinLevel = 0;
+      logEntries = [];
+      waterIntakeMl = 0;
+      await _saveData();
+    } else {
+      currentCalories = data['currentCalories']?.toDouble() ?? 0;
+      toxinLevel = data['toxinLevel']?.toDouble() ?? 0;
+      waterIntakeMl = data['waterIntakeMl'] ?? 0;
+      if (data['logEntries'] != null) {
+        logEntries = (data['logEntries'] as List).map((entry) => LogEntry.fromJson(Map<String, dynamic>.from(entry))).toList();
+      } else {
+        logEntries = [];
+      }
+    }
+
+    notifyListeners();
+    await initHealth();
+  }
+
+  Future<void> _saveData() async {
+    if (_uid == null) return;
+
+    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final userDocRef = _firestore.collection('users').doc(_uid);
+
+    final logEntriesJson = logEntries.map((entry) => entry.toJson()).toList();
+
+    await userDocRef.set({
+      'lastActiveDate': today,
+      'userAge': userAge,
+      'userHeightCm': userHeightCm,
+      'userWeightKg': userWeightKg,
+      'gender': gender.index,
+      'activityLevel': activityLevel.index,
+      'currentCalories': currentCalories,
+      'toxinLevel': toxinLevel,
+      'bossHp': bossHp,
+      'maxBossHp': maxBossHp,
+      'bossStage': bossStage,
+      'userLevel': userLevel,
+      'currentXp': currentXp,
+      'isToxified': isToxified,
+      'waterIntakeMl': waterIntakeMl,
+      'logEntries': logEntriesJson,
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> _createInitialUserData() async {
+    if (_uid == null) return;
+    await _firestore.collection('users').doc(_uid).set({
+      'userAge': 30,
+      'userHeightCm': 175.0,
+      'userWeightKg': 75.0,
+      'gender': Gender.male.index,
+      'activityLevel': ActivityLevel.moderate.index,
+      'userLevel': 1,
+      'currentXp': 0.0,
+      'bossStage': 1,
+      'maxBossHp': 7700.0,
+      'bossHp': 7700.0,
+      'isToxified': false,
+      'waterIntakeMl': 0,
+      'logEntries': [],
+      'lastActiveDate': '',
+    });
   }
 
   Future<void> initHealth() async {
@@ -52,16 +152,22 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> processAutoHunt() async {
-    final prefs = await SharedPreferences.getInstance();
-    final lastCheckTimeString = prefs.getString('lastStepCheckTime');
+    if (_uid == null) return;
+    final userDoc = await _firestore.collection('users').doc(_uid).get();
+    if (!userDoc.exists) return;
+
+    final data = userDoc.data()!;
+    final lastCheckTimeString = data['lastStepCheckTime'];
     final now = DateTime.now();
 
+    DateTime lastCheckTime;
     if (lastCheckTimeString == null) {
-      prefs.setString('lastStepCheckTime', now.toIso8601String());
+      await _firestore.collection('users').doc(_uid).set({'lastStepCheckTime': now.toIso8601String()}, SetOptions(merge: true));
       return;
+    } else {
+      lastCheckTime = DateTime.parse(lastCheckTimeString);
     }
 
-    final lastCheckTime = DateTime.parse(lastCheckTimeString);
     int? steps = await health.getTotalStepsInInterval(lastCheckTime, now);
 
     if (steps != null && steps > 0) {
@@ -81,7 +187,8 @@ class AppState extends ChangeNotifier {
         }
       }
     }
-    prefs.setString('lastStepCheckTime', now.toIso8601String());
+
+    await _firestore.collection('users').doc(_uid).set({'lastStepCheckTime': now.toIso8601String()}, SetOptions(merge: true));
     notifyListeners();
   }
 
@@ -117,65 +224,6 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> loadData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final todayString = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final lastActiveDate = prefs.getString('lastActiveDate');
-
-    userAge = prefs.getInt('userAge') ?? 30;
-    userHeightCm = prefs.getDouble('userHeightCm') ?? 175.0;
-    userWeightKg = prefs.getDouble('userWeightKg') ?? 75.0;
-    gender = Gender.values[prefs.getInt('gender') ?? Gender.male.index];
-    activityLevel = ActivityLevel.values[prefs.getInt('activityLevel') ?? ActivityLevel.moderate.index];
-    recalculateRecommendedCalories();
-
-    userLevel = prefs.getInt('userLevel') ?? 1;
-    currentXp = prefs.getDouble('currentXp') ?? 0;
-    bossStage = prefs.getInt('bossStage') ?? 1;
-    maxBossHp = prefs.getDouble('maxBossHp') ?? 7700.0;
-    bossHp = prefs.getDouble('bossHp') ?? maxBossHp;
-    xpForNextLevel = _calculateXpForNextLevel(userLevel);
-
-    if (lastActiveDate == null || lastActiveDate != todayString) {
-      currentCalories = 0;
-      toxinLevel = 0;
-      logEntries = [];
-      isToxified = false;
-      waterIntakeMl = 0;
-    } else {
-      currentCalories = prefs.getDouble('currentCalories') ?? 0;
-      toxinLevel = prefs.getDouble('toxinLevel') ?? 0;
-      isToxified = prefs.getBool('isToxified') ?? false;
-      waterIntakeMl = prefs.getInt('waterIntakeMl') ?? 0;
-      List<String> logEntriesJson = prefs.getStringList('logEntries') ?? [];
-      logEntries = logEntriesJson.map((jsonString) => LogEntry.fromJson(jsonDecode(jsonString))).toList();
-    }
-    notifyListeners();
-    await initHealth();
-  }
-
-  Future<void> _saveData() async {
-    final prefs = await SharedPreferences.getInstance();
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    prefs.setString('lastActiveDate', today);
-    prefs.setInt('userAge', userAge);
-    prefs.setDouble('userHeightCm', userHeightCm);
-    prefs.setDouble('userWeightKg', userWeightKg);
-    prefs.setInt('gender', gender.index);
-    prefs.setInt('activityLevel', activityLevel.index);
-    prefs.setDouble('currentCalories', currentCalories);
-    prefs.setDouble('toxinLevel', toxinLevel);
-    prefs.setDouble('bossHp', bossHp);
-    prefs.setDouble('maxBossHp', maxBossHp);
-    prefs.setInt('bossStage', bossStage);
-    prefs.setInt('userLevel', userLevel);
-    prefs.setDouble('currentXp', currentXp);
-    prefs.setBool('isToxified', isToxified);
-    prefs.setInt('waterIntakeMl', waterIntakeMl);
-    List<String> logEntriesJson = logEntries.map((entry) => jsonEncode(entry.toJson())).toList();
-    prefs.setStringList('logEntries', logEntriesJson);
-  }
-
   void recalculateRecommendedCalories() {
     double bmr;
     if (gender == Gender.male) {
@@ -202,6 +250,7 @@ class AppState extends ChangeNotifier {
     activityLevel = newActivityLevel;
     recalculateRecommendedCalories();
     _saveData();
+    notifyListeners();
   }
 
   void addWater(int amount) {

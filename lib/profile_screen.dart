@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app_state.dart';
+import 'authentication_service.dart'; // 인증 서비스 import
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -10,7 +11,6 @@ class ProfileScreen extends StatelessWidget {
     final appState = context.watch<AppState>();
     final theme = Theme.of(context);
 
-    // 활동 수준을 한글로 변환하는 함수
     String getActivityLevelText(ActivityLevel level) {
       switch (level) {
         case ActivityLevel.sedentary: return '좌식 생활';
@@ -25,7 +25,6 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('내 정보'),
         centerTitle: true,
-        // --- 여기를 추가했습니다: 편집 버튼 ---
         actions: [
           IconButton(
             icon: const Icon(Icons.edit),
@@ -95,6 +94,21 @@ class ProfileScreen extends StatelessWidget {
               '${appState.maxCalories.toStringAsFixed(0)} kcal',
               isHighlight: true
           ),
+          const Divider(height: 40),
+
+          // --- 여기를 추가했습니다: 로그아웃 버튼 ---
+          ElevatedButton.icon(
+            icon: const Icon(Icons.logout),
+            label: const Text('로그아웃'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            onPressed: () {
+              context.read<AuthenticationService>().signOut();
+            },
+          )
         ],
       ),
     );
@@ -116,7 +130,6 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  // --- 여기를 추가했습니다: 프로필 편집 팝업 함수 ---
   Future<void> _showEditProfileDialog(BuildContext context, AppState appState) async {
     final ageController = TextEditingController(text: appState.userAge.toString());
     final heightController = TextEditingController(text: appState.userHeightCm.toString());

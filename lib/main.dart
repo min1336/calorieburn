@@ -2,15 +2,35 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'app_state.dart';
-import 'home_screen.dart';
-import 'boss_raid_screen.dart';
-import 'profile_screen.dart';
+import 'authentication_service.dart';
+import 'auth_wrapper.dart';
 
-void main() {
+Future<void> main() async {
+  // Flutter 앱을 실행하기 전에 네이티브 코드를 호출할 수 있도록 보장
+  WidgetsFlutterBinding.ensureInitialized();
+  // Firebase 초기화
+  await Firebase.initializeApp();
+
   runApp(
-    ChangeNotifierProvider(
-      create: (context) => AppState(),
+    MultiProvider(
+      providers: [
+        // 1. 인증 서비스 제공
+        Provider<AuthenticationService>(
+          create: (_) => AuthenticationService(FirebaseAuth.instance),
+        ),
+        // 2. 인증 상태 스트림 제공
+        StreamProvider(
+          create: (context) => context.read<AuthenticationService>().authStateChanges,
+          initialData: null,
+        ),
+        // 3. 앱의 핵심 상태 제공
+        ChangeNotifierProvider(
+          create: (context) => AppState(),
+        ),
+      ],
       child: const CalorieBurnApp(),
     ),
   );
@@ -25,82 +45,32 @@ class CalorieBurnApp extends StatelessWidget {
       title: 'Calorie Burn',
       theme: ThemeData(
         brightness: Brightness.dark,
-        // ... (테마 설정은 변경 없음)
-      ),
-      home: const MainScreen(),
-    );
-  }
-}
-
-class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
-
-  @override
-  State<MainScreen> createState() => _MainScreenState();
-}
-
-class _MainScreenState extends State<MainScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // initState에서 리스너를 추가하여 자동 사냥 결과를 감지
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final appState = context.read<AppState>();
-      appState.addListener(_showAutoHuntDialog);
-    });
-  }
-
-  @override
-  void dispose() {
-    // 위젯이 사라질 때 리스너를 제거하여 메모리 누수 방지
-    context.read<AppState>().removeListener(_showAutoHuntDialog);
-    super.dispose();
-  }
-
-  void _showAutoHuntDialog() {
-    final appState = context.read<AppState>();
-    // autoHuntResult에 메시지가 있고, 아직 화면에 팝업이 떠있지 않을 때만 실행
-    if (appState.autoHuntResult != null && ModalRoute.of(context)?.isCurrent != false) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('⚔️ 자동 사냥 결과 ⚔️'),
-          content: Text(appState.autoHuntResult!),
-          actions: [
-            TextButton(
-              onPressed: () {
-                // 팝업을 닫고, 결과 메시지를 null로 초기화하여 중복 표시 방지
-                appState.autoHuntResult = null;
-                Navigator.of(context).pop();
-              },
-              child: const Text('확인'),
-            ),
-          ],
+        primaryColor: Colors.deepPurple,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        colorScheme: const ColorScheme.dark(
+          primary: Colors.deepPurpleAccent,
+          secondary: Colors.amber,
+          onPrimary: Colors.white,
+          onSecondary: Colors.black,
         ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final appState = context.watch<AppState>();
-    final List<Widget> screens = [
-      const HomeScreen(),
-      const BossRaidScreen(),
-      const ProfileScreen(),
-    ];
-
-    return Scaffold(
-      body: screens[appState.selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
-          BottomNavigationBarItem(icon: Icon(Icons.shield), label: '보스 레이드'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: '내 정보'),
-        ],
-        currentIndex: appState.selectedIndex,
-        onTap: (index) => context.read<AppState>().onTabTapped(index),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(fontSize: 16.0),
+          bodyMedium: TextStyle(fontSize: 14.0, color: Colors.white70),
+          headlineSmall: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold, color: Colors.white),
+          titleLarge: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        cardTheme: CardThemeData(
+          color: const Color(0xFF1E1E1E),
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        progressIndicatorTheme: ProgressIndicatorThemeData(
+          color: Colors.deepPurpleAccent,
+          linearTrackColor: Colors.grey[800],
+        ),
       ),
+      // AuthWrapper가 로그인 상태를 확인하고 적절한 화면을 보여줌
+      home: const AuthWrapper(),
     );
   }
 }
