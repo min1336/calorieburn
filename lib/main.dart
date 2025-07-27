@@ -1,26 +1,28 @@
 // lib/main.dart
 
-import 'package:camera/camera.dart'; // camera 패키지 import
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // dotenv import
 import 'app_state.dart';
 import 'authentication_service.dart';
 import 'auth_wrapper.dart';
 
-// 사용 가능한 카메라 목록을 저장할 변수
 List<CameraDescription> cameras = [];
 
 Future<void> main() async {
-  // main 함수를 비동기로 변경
   try {
     WidgetsFlutterBinding.ensureInitialized();
+
+    // .env 파일을 로드합니다.
+    await dotenv.load(fileName: ".env");
+
     await Firebase.initializeApp();
-    // 앱 실행 전에 카메라 목록을 가져옴
     cameras = await availableCameras();
   } catch (e) {
-    print('카메라를 초기화하는 데 실패했습니다: $e');
+    debugPrint('초기화 중 오류 발생: $e');
   }
 
   runApp(

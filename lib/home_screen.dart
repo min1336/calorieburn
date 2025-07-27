@@ -16,6 +16,8 @@ class HomeScreen extends StatelessWidget {
     final isOver = appState.currentCalories > appState.maxCalories;
     final calorieRatio = (appState.maxCalories > 0) ? (appState.currentCalories / appState.maxCalories).clamp(0.0, 1.0) : 0.0;
 
+    final overCalories = isOver ? appState.currentCalories - appState.maxCalories : 0.0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('오늘의 챌린지'),
@@ -109,6 +111,58 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ),
+
+            if (isOver)
+              Padding(
+                padding: const EdgeInsets.only(top: 24.0),
+                child: Card(
+                  color: const Color(0xFF2a2a2a),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.whatshot, color: Colors.redAccent),
+                            const SizedBox(width: 8),
+                            Text(
+                              '오버 칼로리 태우기 챌린지!',
+                              style: theme.textTheme.titleLarge?.copyWith(color: Colors.redAccent),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          '초과된 ${overCalories.toInt()} kcal를 소모하려면 아래 운동이 필요해요.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 16),
+                        ...appState.exerciseMETs.keys.map((exercise) {
+                          final minutes = appState.calculateExerciseMinutes(overCalories, exercise);
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4.0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(exercise, style: theme.textTheme.bodyLarge),
+                                Text(
+                                  '약 ${minutes}분',
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: theme.colorScheme.secondary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
             const SizedBox(height: 24),
             Row(
               children: [

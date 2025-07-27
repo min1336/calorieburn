@@ -168,6 +168,32 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // 임시 테스트용 칼로리 감소 함수 (랭킹 로직 추가됨)
+  void decreaseCalories(double amount) {
+    // 감소 전 오버 칼로리 계산
+    double caloriesOverBefore = max(0, currentCalories - maxCalories);
+
+    // 칼로리 감소
+    currentCalories -= amount;
+    if (currentCalories < 0) {
+      currentCalories = 0;
+    }
+
+    // 감소 후 오버 칼로리 계산
+    double caloriesOverAfter = max(0, currentCalories - maxCalories);
+
+    // 실제로 소모된 '오버 칼로리' 양 계산
+    double burnedOverCalories = caloriesOverBefore - caloriesOverAfter;
+
+    // 랭킹 점수에 반영
+    if (burnedOverCalories > 0) {
+      todayOverconsumedCaloriesBurned += burnedOverCalories;
+    }
+
+    _saveData();
+    notifyListeners();
+  }
+
   Future<void> initHealth() async {
     final types = [HealthDataType.ACTIVE_ENERGY_BURNED];
     final permissions = types.map((e) => HealthDataAccess.READ).toList();
@@ -265,5 +291,25 @@ class AppState extends ChangeNotifier {
       isRankingLoading = false;
       notifyListeners();
     }
+  }
+
+  Map<String, double> get exerciseMETs => {
+    '가볍게 걷기': 3.5,
+    '보통 속도로 달리기': 7.0,
+    '자전거 타기': 8.0,
+    '수영 (보통)': 7.0,
+  };
+
+  int calculateExerciseMinutes(double calories, String exerciseName) {
+    if (!exerciseMETs.containsKey(exerciseName) || userWeightKg <= 0) {
+      return 0;
+    }
+    final met = exerciseMETs[exerciseName]!;
+    final caloriesPerMinute = (met * 3.5 * userWeightKg) / 200;
+    if (caloriesPerMinute <= 0) {
+      return 0;
+    }
+    final minutes = calories / caloriesPerMinute;
+    return minutes.ceil();
   }
 }

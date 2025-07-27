@@ -2,20 +2,13 @@
 
 import 'dart:io';
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app_state.dart';
-import 'main.dart'; // main.dart에서 정의한 cameras 변수를 사용하기 위해 import
-// http 패키지는 실제 API 호출 시 필요합니다.
-// import 'package:http/http.dart' as http;
-// import 'dart:convert';
-
-// AI 분석 결과를 담을 클래스
-class AnalysisResult {
-  final String foodName;
-  final double calories;
-  AnalysisResult({required this.foodName, required this.calories});
-}
+import 'main.dart';
+import 'huggingface_service.dart';
+import 'analysis_result.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -30,12 +23,14 @@ class _CameraScreenState extends State<CameraScreen> {
   XFile? _imageFile;
   Future<AnalysisResult?>? _analysisFuture;
 
+  final HuggingFaceService _huggingFaceService = HuggingFaceService();
+
   @override
   void initState() {
     super.initState();
     _controller = CameraController(
       cameras.first,
-      ResolutionPreset.high, // 더 좋은 화질로 변경
+      ResolutionPreset.high,
     );
     _initializeControllerFuture = _controller.initialize();
   }
@@ -52,48 +47,16 @@ class _CameraScreenState extends State<CameraScreen> {
       final image = await _controller.takePicture();
       setState(() {
         _imageFile = image;
-        _analysisFuture = _analyzeImage(image); // 사진을 찍으면 바로 분석 시작
+        _analysisFuture = _huggingFaceService.analyzeImage(image);
       });
     } catch (e) {
-      print(e);
-    }
-  }
-
-  // AI 서버에 이미지를 보내고 결과를 받는 가상 함수
-  Future<AnalysisResult> _analyzeImage(XFile image) async {
-    // --- AI 분석 시뮬레이션 ---
-    // 실제 API를 연동하기 전까지, 2초간 로딩 후 가짜 데이터를 반환합니다.
-    await Future.delayed(const Duration(seconds: 2));
-    return AnalysisResult(foodName: 'AI 분석 결과: 닭가슴살', calories: 250);
-    // --- 시뮬레이션 끝 ---
-
-    /*
-    // --- 실제 API 연동 시 사용할 코드 예시 ---
-    final uri = Uri.parse('YOUR_AI_API_ENDPOINT_HERE');
-    final request = http.MultipartRequest('POST', uri)
-      ..files.add(await http.MultipartFile.fromPath('image', image.path));
-
-    // API Key가 필요하다면 헤더에 추가
-    // request.headers.addAll({'Authorization': 'Bearer YOUR_API_KEY'});
-
-    try {
-      final response = await request.send();
-      if (response.statusCode == 200) {
-        final responseBody = await response.stream.bytesToString();
-        final data = json.decode(responseBody);
-        // API 응답 형식에 맞게 파싱
-        return AnalysisResult(
-          foodName: data['foodName'],
-          calories: data['calories'].toDouble(),
-        );
-      } else {
-        throw Exception('Failed to analyze image');
+      if (kDebugMode) {
+        print(e);
       }
-    } catch (e) {
-      print(e);
-      throw Exception('Failed to connect to the server');
+      setState(() {
+        _analysisFuture = Future.error(e);
+      });
     }
-    */
   }
 
   @override
@@ -107,7 +70,6 @@ class _CameraScreenState extends State<CameraScreen> {
             if (_imageFile == null) {
               return CameraPreview(_controller);
             } else {
-              // AI 분석 결과를 보여주는 화면으로 변경
               return _buildResultScreen();
             }
           } else {
@@ -137,7 +99,6 @@ class _CameraScreenState extends State<CameraScreen> {
           child: FutureBuilder<AnalysisResult?>(
             future: _analysisFuture,
             builder: (context, snapshot) {
-              // 로딩 중일 때
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
                   child: Column(
@@ -150,13 +111,26 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 );
               }
-              // 에러 발생 시
               if (snapshot.hasError) {
                 return Center(
-                  child: Text('오류 발생: ${snapshot.error}'),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                        const SizedBox(height: 16),
+                        Text('오류 발생: ${snapshot.error}', textAlign: TextAlign.center),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: () => setState(() => _imageFile = null),
+                          child: const Text('다시 시도하기'),
+                        )
+                      ],
+                    ),
+                  ),
                 );
               }
-              // 분석 완료 시
               final result = snapshot.data;
               if (result != null) {
                 return Padding(
@@ -165,8 +139,18 @@ class _CameraScreenState extends State<CameraScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        '${result.foodName} (${result.calories.toInt()} kcal)',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                        '분석 결과: ${result.foodName.replaceAll('_', ' ')}',
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '${result.calories.toInt()} kcal',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.secondary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 20),
@@ -201,7 +185,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 );
               }
-              return const Center(child: Text('분석 결과가 없습니다.'));
+              return const Center(child: Text('분석 결과가 없습니다. 다시 시도해 주세요.'));
             },
           ),
         ),
