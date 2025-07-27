@@ -44,13 +44,10 @@ class AuthenticationService {
       'userWeightKg': 75.0,
       'gender': 0,
       'activityLevel': 2,
-      'userLevel': 1,
-      'currentXp': 0.0,
-      'bossStage': 1,
-      'maxBossHp': 7700.0,
-      'bossHp': 7700.0,
-      'isToxified': false,
       'lastActiveDate': '',
+      'todayOverconsumedCaloriesBurned': 0.0,
+      'syncedCaloriesToday': 0.0,
+      'healthDeviceSource': null, // 기기 이름 필드 추가
     });
   }
 

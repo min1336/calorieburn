@@ -15,8 +15,6 @@ class _RankingScreenState extends State<RankingScreen> {
   @override
   void initState() {
     super.initState();
-    // 화면이 처음 로드될 때 랭킹 데이터를 가져옴
-    // (데이터 로딩은 이제 loadData 이후에 처리되므로 이 부분은 예비용)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppState>().fetchRankings();
     });
@@ -28,13 +26,12 @@ class _RankingScreenState extends State<RankingScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('친구 랭킹'), // 제목을 바꿔도 좋습니다.
+        title: const Text('오버 칼로리 챌린지 랭킹'),
         centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              // 새로고침 버튼
               appState.fetchRankings();
             },
           ),
@@ -47,7 +44,7 @@ class _RankingScreenState extends State<RankingScreen> {
         child: Padding(
           padding: EdgeInsets.all(16.0),
           child: Text(
-            '아직 친구가 없거나 랭킹 정보를 불러올 수 없습니다.\n[내 정보] > [친구 관리]에서 친구를 추가해보세요!',
+            '랭킹 정보가 없습니다.\n친구를 추가하고 함께 챌린지에 참여해보세요!',
             textAlign: TextAlign.center,
           ),
         ),
@@ -57,6 +54,7 @@ class _RankingScreenState extends State<RankingScreen> {
         itemBuilder: (context, index) {
           final userRank = appState.rankings[index];
           final rank = index + 1;
+          final score = userRank['todayOverconsumedCaloriesBurned'] ?? 0.0;
 
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -69,12 +67,12 @@ class _RankingScreenState extends State<RankingScreen> {
                 userRank['nickname'] ?? '이름 없음',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
-              subtitle: Text('Stage ${userRank['bossStage'] ?? 1}'),
               trailing: Text(
-                'Lv. ${userRank['userLevel'] ?? 1}',
+                '${score.toInt()} kcal',
                 style: TextStyle(
                   color: Theme.of(context).colorScheme.secondary,
                   fontWeight: FontWeight.bold,
+                  fontSize: 18,
                 ),
               ),
             ),

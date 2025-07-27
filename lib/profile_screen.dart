@@ -1,7 +1,6 @@
 // lib/profile_screen.dart
 
-import 'package:calorie_burn/friends_screen.dart';
-import 'package:calorie_burn/inventory_screen.dart';
+import 'package:calorie_burn/data_sources_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app_state.dart';
@@ -54,38 +53,6 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 30),
-          Text('게임 정보', style: theme.textTheme.titleLarge?.copyWith(color: Colors.white70)),
-          const SizedBox(height: 8),
-          _buildInfoCard(context, '현재 레벨', 'Lv. ${appState.userLevel}', isHighlight: true),
-          Card(
-            margin: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('경험치', style: theme.textTheme.bodyMedium),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: appState.xpForNextLevel > 0 ? appState.currentXp / appState.xpForNextLevel : 0,
-                    minHeight: 8,
-                    backgroundColor: Colors.grey[800],
-                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.amberAccent),
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      '${appState.currentXp.toInt()} / ${appState.xpForNextLevel.toInt()} XP',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          _buildInfoCard(context, '보스 진행', 'Stage ${appState.bossStage}'),
-          const Divider(height: 40),
           Text('신체 정보', style: theme.textTheme.titleLarge?.copyWith(color: Colors.white70)),
           const SizedBox(height: 8),
           _buildInfoCard(context, '성별', appState.gender == Gender.male ? '남성' : '여성'),
@@ -100,38 +67,37 @@ class ProfileScreen extends StatelessWidget {
               isHighlight: true
           ),
           const Divider(height: 40),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.shopping_bag_outlined),
-            label: const Text('내 가방'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orangeAccent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+
+          Text('데이터 연동', style: theme.textTheme.titleLarge?.copyWith(color: Colors.white70)),
+          const SizedBox(height: 8),
+          Card(
+            margin: const EdgeInsets.symmetric(vertical: 8.0),
+            child: ListTile(
+              leading: Icon(
+                appState.isHealthAuthorized ? Icons.check_circle_outline : Icons.help_outline,
+                color: appState.isHealthAuthorized ? Colors.greenAccent : Colors.grey,
+              ),
+              title: const Text('건강 데이터 권한'),
+              subtitle: Text(appState.isHealthAuthorized ? '권한이 허용되었습니다.' : '동기화 시 권한을 허용해주세요.'),
             ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const InventoryScreen()),
-              );
-            },
           ),
-          const SizedBox(height: 10),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.people),
-            label: const Text('친구 관리'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.teal,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+          Card(
+            margin: const EdgeInsets.symmetric(vertical: 8.0),
+            child: ListTile(
+              leading: const Icon(Icons.watch, color: Colors.deepPurpleAccent),
+              title: const Text('주 데이터 소스'),
+              subtitle: Text(appState.primaryDataSource ?? '선택되지 않음'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DataSourcesScreen()),
+                );
+              },
             ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const FriendsScreen()),
-              );
-            },
           ),
-          const SizedBox(height: 10),
+
+          const Divider(height: 40),
           ElevatedButton.icon(
             icon: const Icon(Icons.logout),
             label: const Text('로그아웃'),
