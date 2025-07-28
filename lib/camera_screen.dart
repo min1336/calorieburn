@@ -28,15 +28,21 @@ class _CameraScreenState extends State<CameraScreen> {
   @override
   void initState() {
     super.initState();
+    debugPrint("[CameraScreen] initState: 카메라 초기화를 시작합니다.");
     _controller = CameraController(
       cameras.first,
       ResolutionPreset.high,
     );
-    _initializeControllerFuture = _controller.initialize();
+    _initializeControllerFuture = _controller.initialize().then((_) {
+      debugPrint("[CameraScreen] initState: 카메라 초기화가 완료되었습니다.");
+    }).catchError((e) {
+      debugPrint("[CameraScreen] initState: 카메라 초기화 중 오류 발생! 오류: $e");
+    });
   }
 
   @override
   void dispose() {
+    debugPrint("[CameraScreen] dispose: 카메라 컨트롤러를 해제합니다.");
     _controller.dispose();
     super.dispose();
   }
@@ -44,15 +50,16 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void> _takePicture() async {
     try {
       await _initializeControllerFuture;
+      debugPrint("[CameraScreen] takePicture: 사진 촬영을 시도합니다.");
       final image = await _controller.takePicture();
+      debugPrint("[CameraScreen] takePicture: 사진 촬영 성공! 파일 경로: ${image.path}");
       setState(() {
         _imageFile = image;
+        debugPrint("[CameraScreen] takePicture: 이미지 분석을 시작합니다.");
         _analysisFuture = _huggingFaceService.analyzeImage(image);
       });
     } catch (e) {
-      if (kDebugMode) {
-        print(e);
-      }
+      debugPrint("[CameraScreen] takePicture: 사진 촬영 중 심각한 오류 발생! 오류: $e");
       setState(() {
         _analysisFuture = Future.error(e);
       });
@@ -68,11 +75,14 @@ class _CameraScreenState extends State<CameraScreen> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done) {
             if (_imageFile == null) {
+              debugPrint("[CameraScreen] build: 카메라 미리보기를 표시합니다.");
               return CameraPreview(_controller);
             } else {
+              debugPrint("[CameraScreen] build: 분석 결과 화면을 표시합니다.");
               return _buildResultScreen();
             }
           } else {
+            debugPrint("[CameraScreen] build: 카메라 초기화 대기 중...");
             return const Center(child: CircularProgressIndicator());
           }
         },
@@ -100,6 +110,7 @@ class _CameraScreenState extends State<CameraScreen> {
             future: _analysisFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
+                debugPrint("[CameraScreen] Result: AI가 사진을 분석하고 있습니다...");
                 return const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -112,6 +123,7 @@ class _CameraScreenState extends State<CameraScreen> {
                 );
               }
               if (snapshot.hasError) {
+                debugPrint("[CameraScreen] Result: 분석 중 오류 발생! 오류: ${snapshot.error}");
                 return Center(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -123,7 +135,10 @@ class _CameraScreenState extends State<CameraScreen> {
                         Text('오류 발생: ${snapshot.error}', textAlign: TextAlign.center),
                         const SizedBox(height: 20),
                         ElevatedButton(
-                          onPressed: () => setState(() => _imageFile = null),
+                          onPressed: () {
+                            debugPrint("[CameraScreen] Result: '다시 시도하기' 버튼 클릭됨.");
+                            setState(() => _imageFile = null);
+                          },
                           child: const Text('다시 시도하기'),
                         )
                       ],
@@ -133,6 +148,7 @@ class _CameraScreenState extends State<CameraScreen> {
               }
               final result = snapshot.data;
               if (result != null) {
+                debugPrint("[CameraScreen] Result: 분석 성공! 음식: ${result.foodName}, 칼로리: ${result.calories}");
                 return Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Column(
@@ -162,6 +178,7 @@ class _CameraScreenState extends State<CameraScreen> {
                             label: const Text('다시 찍기'),
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
                             onPressed: () {
+                              debugPrint("[CameraScreen] Result: '다시 찍기' 버튼 클릭됨.");
                               setState(() {
                                 _imageFile = null;
                               });
@@ -172,6 +189,7 @@ class _CameraScreenState extends State<CameraScreen> {
                             label: const Text('이걸로 섭취'),
                             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                             onPressed: () {
+                              debugPrint("[CameraScreen] Result: '이걸로 섭취' 버튼 클릭됨. 칼로리 추가: ${result.calories}");
                               context.read<AppState>().addCalories(result.foodName, result.calories);
                               Navigator.of(context).pop();
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -185,6 +203,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   ),
                 );
               }
+              debugPrint("[CameraScreen] Result: 분석 결과가 null입니다.");
               return const Center(child: Text('분석 결과가 없습니다. 다시 시도해 주세요.'));
             },
           ),

@@ -147,7 +147,7 @@ class HomeScreen extends StatelessWidget {
                               children: [
                                 Text(exercise, style: theme.textTheme.bodyLarge),
                                 Text(
-                                  '약 ${minutes}분',
+                                  '약 $minutes분',
                                   style: theme.textTheme.bodyLarge?.copyWith(
                                     color: theme.colorScheme.secondary,
                                     fontWeight: FontWeight.bold,
@@ -156,7 +156,7 @@ class HomeScreen extends StatelessWidget {
                               ],
                             ),
                           );
-                        }).toList(),
+                        }),
                       ],
                     ),
                   ),

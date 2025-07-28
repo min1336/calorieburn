@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -11,7 +12,8 @@ enum Gender { male, female }
 enum ActivityLevel { sedentary, light, moderate, active, veryActive }
 
 class AppState extends ChangeNotifier {
-  final HealthFactory health = HealthFactory(useHealthConnectIfAvailable: true);
+  // Health 클래스 초기화 방식을 수정했습니다.
+  final Health health = Health();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   int selectedIndex = 0;
@@ -36,9 +38,10 @@ class AppState extends ChangeNotifier {
     final types = [
       HealthDataType.ACTIVE_ENERGY_BURNED,
     ];
-    final permissions = types.map((e) => HealthDataAccess.READ).toList();
+    final permissions = [HealthDataAccess.READ];
 
     isHealthAuthorized = await health.requestAuthorization(types, permissions: permissions);
+
     notifyListeners();
 
     if (isHealthAuthorized) {
@@ -46,7 +49,13 @@ class AppState extends ChangeNotifier {
         final now = DateTime.now();
         final midnight = DateTime(now.year, now.month, now.day);
 
-        List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(midnight, now, types);
+        List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
+          startTime: midnight,
+          endTime: now,
+          types: types,
+        );
+
+        healthData = health.removeDuplicates(healthData);
 
         final sources = healthData.map((p) => p.sourceName).toSet().toList();
         availableDataSources = sources;
@@ -59,7 +68,7 @@ class AppState extends ChangeNotifier {
         }
 
         final userDoc = await _firestore.collection('users').doc(_uid).get();
-        final alreadySyncedCalories = userDoc.data()?['syncedCaloriesToday']?.toDouble() ?? 0.0;
+        final alreadySyncedCalories = (userDoc.data()?['syncedCaloriesToday'] as num?)?.toDouble() ?? 0.0;
 
         double totalCaloriesBurnedFromWatch = 0;
         for (var dataPoint in healthData) {
@@ -108,8 +117,8 @@ class AppState extends ChangeNotifier {
 
     nickname = data['nickname'] ?? '';
     userAge = data['userAge'] ?? 30;
-    userHeightCm = data['userHeightCm']?.toDouble() ?? 175.0;
-    userWeightKg = data['userWeightKg']?.toDouble() ?? 75.0;
+    userHeightCm = (data['userHeightCm'] as num?)?.toDouble() ?? 175.0;
+    userWeightKg = (data['userWeightKg'] as num?)?.toDouble() ?? 75.0;
     gender = Gender.values[data['gender'] ?? Gender.male.index];
     activityLevel = ActivityLevel.values[data['activityLevel'] ?? ActivityLevel.moderate.index];
     recalculateRecommendedCalories();
@@ -127,9 +136,9 @@ class AppState extends ChangeNotifier {
       }, SetOptions(merge: true));
       await _saveData();
     } else {
-      currentCalories = data['currentCalories']?.toDouble() ?? 0;
-      todayOverconsumedCaloriesBurned = data['todayOverconsumedCaloriesBurned']?.toDouble() ?? 0;
-      todaySyncedCalories = data['syncedCaloriesToday']?.toDouble() ?? 0;
+      currentCalories = (data['currentCalories'] as num?)?.toDouble() ?? 0;
+      todayOverconsumedCaloriesBurned = (data['todayOverconsumedCaloriesBurned'] as num?)?.toDouble() ?? 0;
+      todaySyncedCalories = (data['syncedCaloriesToday'] as num?)?.toDouble() ?? 0;
     }
 
     notifyListeners();
@@ -168,36 +177,27 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  // 임시 테스트용 칼로리 감소 함수 (랭킹 로직 추가됨)
   void decreaseCalories(double amount) {
-    // 감소 전 오버 칼로리 계산
     double caloriesOverBefore = max(0, currentCalories - maxCalories);
-
-    // 칼로리 감소
     currentCalories -= amount;
     if (currentCalories < 0) {
       currentCalories = 0;
     }
-
-    // 감소 후 오버 칼로리 계산
     double caloriesOverAfter = max(0, currentCalories - maxCalories);
-
-    // 실제로 소모된 '오버 칼로리' 양 계산
     double burnedOverCalories = caloriesOverBefore - caloriesOverAfter;
-
-    // 랭킹 점수에 반영
     if (burnedOverCalories > 0) {
       todayOverconsumedCaloriesBurned += burnedOverCalories;
     }
-
     _saveData();
     notifyListeners();
   }
 
   Future<void> initHealth() async {
     final types = [HealthDataType.ACTIVE_ENERGY_BURNED];
-    final permissions = types.map((e) => HealthDataAccess.READ).toList();
+    final permissions = [HealthDataAccess.READ];
+
     isHealthAuthorized = await health.requestAuthorization(types, permissions: permissions);
+
     notifyListeners();
     if (isHealthAuthorized) {
       await fetchTodayHealthData();
@@ -208,7 +208,14 @@ class AppState extends ChangeNotifier {
     final now = DateTime.now();
     final midnight = DateTime(now.year, now.month, now.day);
 
-    List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(midnight, now, [HealthDataType.ACTIVE_ENERGY_BURNED]);
+    List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(
+        startTime: midnight,
+        endTime: now,
+        types: [HealthDataType.ACTIVE_ENERGY_BURNED]
+    );
+
+    healthData = health.removeDuplicates(healthData);
+
     if (primaryDataSource != null) {
       healthData = healthData.where((p) => p.sourceName == primaryDataSource).toList();
     }
@@ -285,7 +292,9 @@ class AppState extends ChangeNotifier {
 
       rankings = querySnapshot.docs.map((doc) => doc.data()).toList();
     } catch (e) {
-      print("랭킹을 불러오는 중 오류 발생: $e");
+      if (kDebugMode) {
+        debugPrint("랭킹을 불러오는 중 오류 발생: $e");
+      }
       rankings = [];
     } finally {
       isRankingLoading = false;
