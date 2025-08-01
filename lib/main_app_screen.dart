@@ -32,7 +32,6 @@ class _MainAppScreenState extends State<MainAppScreen> {
         ? [
       _buildNavItem(context, Icons.home, '홈', 0, appState),
       _buildNavItem(context, Icons.leaderboard, '랭킹', 1, appState),
-      const Spacer(),
       _buildNavItem(context, Icons.person, '내 정보', 2, appState),
     ]
         : [
@@ -73,7 +72,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
         ),
       )
           : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 

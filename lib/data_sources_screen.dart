@@ -19,11 +19,12 @@ class DataSourcesScreen extends StatelessWidget {
             icon: const Icon(Icons.sync),
             tooltip: '목록 새로고침',
             onPressed: () async {
-              final result = await appState.fetchTodayHealthData();
+              // ✅ 수정: 반환 값을 사용하지 않으므로 변수 할당 제거
+              await appState.fetchTodayHealthData();
               if (context.mounted) {
                 ScaffoldMessenger.of(context)
                   ..removeCurrentSnackBar()
-                  ..showSnackBar(SnackBar(content: Text("데이터를 새로고쳤습니다.")));
+                  ..showSnackBar(const SnackBar(content: Text("데이터를 새로고쳤습니다.")));
               }
             },
           )

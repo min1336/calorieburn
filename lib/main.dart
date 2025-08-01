@@ -8,7 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:background_fetch/background_fetch.dart';
 import 'package:health/health.dart';
-import 'package:intl/date_symbol_data_local.dart'; // 날짜 로캘 데이터를 위해 추가
+import 'package:intl/date_symbol_data_local.dart';
 import 'app_state.dart';
 import 'authentication_service.dart';
 import 'auth_wrapper.dart';
@@ -48,15 +48,10 @@ List<CameraDescription> cameras = [];
 Future<void> main() async {
   try {
     WidgetsFlutterBinding.ensureInitialized();
-
-    // ✅ 추가: 한국어 요일 표시를 위해 로캘 데이터 초기화
     await initializeDateFormatting('ko_KR', null);
-
     await dotenv.load(fileName: ".env");
-
     await Firebase.initializeApp();
     cameras = await availableCameras();
-
     initBackgroundFetch();
 
     runApp(
