@@ -28,7 +28,6 @@ class FoodDataService {
 
         final data = json.decode(response.body);
 
-        // API의 totalCount가 0이면 데이터가 없는 것이므로, 더 정확하게 확인합니다.
         if (data['body'] == null || data['body']['totalCount'] == 0 || (data['body']['items'] as List).isEmpty) {
           debugPrint("[FoodDataService] 응답 성공했으나, '$foodName'에 대한 검색 결과가 없습니다.");
           return null;

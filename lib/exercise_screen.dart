@@ -22,7 +22,6 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       final appState = context.read<AppState>();
       final met = appState.exerciseMETs[_selectedExercise!]!;
       final weight = appState.userWeightKg;
-      // 칼로리 계산 공식: (MET * 3.5 * 체중(kg)) / 200 * 시간(분)
       final caloriesPerMinute = (met * 3.5 * weight) / 200;
       setState(() {
         _burnedCalories = caloriesPerMinute * minutes;
@@ -115,13 +114,16 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              onPressed: (_burnedCalories > 0)
+              onPressed: (_burnedCalories > 0 && _selectedExercise != null)
                   ? () {
-                context.read<AppState>().decreaseCalories(_burnedCalories);
+                context
+                    .read<AppState>()
+                    .decreaseCalories(_selectedExercise!, _burnedCalories);
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('${_selectedExercise!}으로 ${_burnedCalories.toInt()}kcal를 소모했습니다!'),
+                    content: Text(
+                        '${_selectedExercise!}으로 ${_burnedCalories.toInt()}kcal를 소모했습니다!'),
                     backgroundColor: Colors.green,
                   ),
                 );

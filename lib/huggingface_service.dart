@@ -18,18 +18,12 @@ class HuggingFaceService {
     debugPrint("[HuggingFaceService] getFoodLabelsFromImage: Hugging Face API 요청을 시작합니다.");
     debugPrint("[HuggingFaceService] getFoodLabelsFromImage: 요청 URL: $_hfModelUrl");
 
-    // ‼️‼️ API 요청 방식을 '파일 첨부'에서 '데이터 직접 전송'으로 변경했습니다. ‼️‼️
-
-    // 1. 이미지를 byte 데이터로 읽습니다.
     final imageBytes = await imageFile.readAsBytes();
-
-    // 2. 헤더를 설정합니다. (Content-Type을 image/jpeg로 지정)
     final headers = {
       'Authorization': 'Bearer $_hfApiToken',
       'Content-Type': 'image/jpeg',
     };
 
-    // 3. http.post를 사용하여 byte 데이터를 요청 본문(body)으로 직접 보냅니다.
     debugPrint("[HuggingFaceService] getFoodLabelsFromImage: 이미지 데이터를 직접 전송합니다...");
     final response = await http.post(
       Uri.parse(_hfModelUrl),
@@ -59,7 +53,6 @@ class HuggingFaceService {
       if (statusCode == 401 || statusCode == 403) {
         throw Exception('Hugging Face API 인증 오류: API 토큰이 유효한지 확인해주세요. (상태 코드: $statusCode)');
       }
-      // 응답 본문에 있는 에러 메시지를 함께 보여주도록 수정
       final errorData = json.decode(responseBody);
       throw Exception('Hugging Face API 오류: ${errorData['error']} (상태 코드: $statusCode)');
     }

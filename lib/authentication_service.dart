@@ -47,7 +47,7 @@ class AuthenticationService {
       'lastActiveDate': '',
       'todayOverconsumedCaloriesBurned': 0.0,
       'syncedCaloriesToday': 0.0,
-      'healthDeviceSource': null, // 기기 이름 필드 추가
+      'healthDeviceSource': null,
     });
   }
 

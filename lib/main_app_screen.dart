@@ -3,7 +3,6 @@
 import 'package:calorie_burn/camera_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'app_state.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
@@ -19,17 +18,9 @@ class MainAppScreen extends StatefulWidget {
 class _MainAppScreenState extends State<MainAppScreen> {
 
   @override
-  void initState() {
-    super.initState();
-    final user = context.read<User?>();
-    if (user != null) {
-      context.read<AppState>().loadData(user.uid);
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
+    final isHomeScreen = appState.selectedIndex == 0;
 
     final List<Widget> screens = [
       const HomeScreen(),
@@ -37,41 +28,37 @@ class _MainAppScreenState extends State<MainAppScreen> {
       const ProfileScreen(),
     ];
 
+    final List<Widget> navItems = isHomeScreen
+        ? [
+      _buildNavItem(context, Icons.home, '홈', 0, appState),
+      _buildNavItem(context, Icons.leaderboard, '랭킹', 1, appState),
+      const Spacer(),
+      _buildNavItem(context, Icons.person, '내 정보', 2, appState),
+    ]
+        : [
+      _buildNavItem(context, Icons.home, '홈', 0, appState),
+      _buildNavItem(context, Icons.leaderboard, '랭킹', 1, appState),
+      _buildNavItem(context, Icons.person, '내 정보', 2, appState),
+    ];
+
     return Scaffold(
-      // ✅ 수정: Scaffold의 body를 Stack으로 변경하여 위젯을 겹치도록 함
-      body: Stack(
-        children: [
-          // 1. 화면 콘텐츠
-          IndexedStack(
-            index: appState.selectedIndex,
-            children: screens,
-          ),
-          // 2. 하단 탭 바 (화면 맨 아래에 위치)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: BottomAppBar(
-              shape: const CircularNotchedRectangle(),
-              notchMargin: 8.0,
-              child: BottomNavigationBar(
-                type: BottomNavigationBarType.fixed,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                items: const <BottomNavigationBarItem>[
-                  BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
-                  BottomNavigationBarItem(icon: Icon(Icons.leaderboard), label: '랭킹'),
-                  BottomNavigationBarItem(icon: Icon(Icons.person), label: '내 정보'),
-                ],
-                currentIndex: appState.selectedIndex,
-                onTap: (index) => context.read<AppState>().onTabTapped(index),
-              ),
-            ),
-          ),
-        ],
+      body: IndexedStack(
+        index: appState.selectedIndex,
+        children: screens,
       ),
-      // ✅ 수정: FloatingActionButton을 Scaffold에 직접 두어 Stack과 분리
-      floatingActionButton: FloatingActionButton(
+      bottomNavigationBar: BottomAppBar(
+        shape: isHomeScreen ? const CircularNotchedRectangle() : null,
+        notchMargin: 8.0,
+        child: Container(
+          height: 60.0,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: navItems,
+          ),
+        ),
+      ),
+      floatingActionButton: isHomeScreen
+          ? FloatingActionButton(
         onPressed: () {
           Navigator.push(
             context,
@@ -84,8 +71,30 @@ class _MainAppScreenState extends State<MainAppScreen> {
           Icons.camera_alt,
           color: Theme.of(context).colorScheme.onSecondary,
         ),
-      ),
+      )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+    );
+  }
+
+  Widget _buildNavItem(
+      BuildContext context, IconData icon, String label, int index, AppState appState) {
+    final isSelected = appState.selectedIndex == index;
+    final color = isSelected ? Theme.of(context).colorScheme.primary : Colors.grey;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => appState.onTabTapped(index),
+        borderRadius: BorderRadius.circular(30),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color),
+            const SizedBox(height: 4),
+            Text(label, style: TextStyle(color: color, fontSize: 12)),
+          ],
+        ),
+      ),
     );
   }
 }
